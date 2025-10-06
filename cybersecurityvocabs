@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Cybersecurity Vocabulary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Royal Blue and Silver -->
+    <!-- Application Structure Plan: The application is designed as an interactive dashboard. This structure was chosen over a static list to enhance user engagement and learning. It features a persistent left sidebar for primary navigation by unit, allowing users to easily switch contexts. The main content area uses a "flashcard" grid, which promotes active recall (clicking to see the definition). Above the grid, global controls like a search bar and thematic filters (e.g., 'Attacks', 'Defense') are placed. This multi-faceted approach allows users to explore the vocabulary linearly by unit, search for specific terms, or conceptually through themes, making it a much more flexible and powerful learning tool than a simple document. A bar chart provides a visual summary of content distribution across units. -->
+    <!-- Visualization & Content Choices: 1. Unit Vocabulary -> Goal: Learn & Review -> Presentation: Interactive Flashcard Grid -> Interaction: Click card to reveal definition -> Justification: More engaging than a static table, promotes active learning and self-assessment. Method: HTML/CSS/JS. 2. Term Distribution -> Goal: Inform/Overview -> Presentation: Bar Chart -> Interaction: Visually see term count per unit -> Justification: Provides a quick, high-level overview of the curriculum's structure and focus. Library: Chart.js. 3. All Vocabulary -> Goal: Organize & Find -> Presentation: Search bar and thematic filter buttons -> Interaction: Instantly filter all flashcards across all units -> Justification: Allows users to find specific terms quickly and explore related concepts across different units, fostering a deeper understanding of relationships. Method: JS data filtering. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .flashcard {
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            cursor: pointer;
+        }
+        .flashcard.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .flashcard-face {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .flashcard-back {
+            transform: rotateY(180deg);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+            max-height: 300px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="app" class="flex flex-col md:flex-row min-h-screen">
+        
+        <aside id="sidebar" class="w-full md:w-64 bg-white border-r border-gray-200 p-4 md:p-6 md:h-screen md:sticky top-0 shrink-0">
+            <h1 class="text-2xl font-bold text-blue-700 mb-6">Cybersecurity Units</h1>
+            <nav id="unit-nav" class="space-y-2">
+            </nav>
+        </aside>
+
+        <main class="flex-1 p-4 md:p-8 lg:p-10">
+            <header class="mb-8">
+                <h2 id="main-title" class="text-4xl font-bold text-gray-900">Welcome</h2>
+                <p id="main-description" class="mt-2 text-lg text-gray-600">Select a unit to start exploring, or use the filters to search all vocabulary. This interactive glossary is designed to help you master key cybersecurity concepts through active exploration.</p>
+            </header>
+
+            <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="search" class="block text-sm font-medium text-gray-700">Search all terms</label>
+                        <input type="text" id="search" placeholder="e.g., Phishing, Encryption..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="theme-filter" class="block text-sm font-medium text-gray-700">Filter by Theme</label>
+                        <select id="theme-filter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <section id="dashboard-view" class="mb-8">
+                 <h3 class="text-2xl font-semibold text-gray-800 mb-4">Vocabulary Distribution</h3>
+                 <p class="text-gray-600 mb-4">This chart shows the number of key vocabulary terms in each unit, giving you an overview of the curriculum's focus. You can quickly see which units are more definition-heavy.</p>
+                 <div class="chart-container bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+                    <canvas id="terms-chart"></canvas>
+                 </div>
+            </section>
+            
+            <section id="flashcard-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        const vocabularyData = [
+            { unit: 1, term: "Authentication", definition: "The process of verifying the identity of a user, process, or device to allow access to a system.", theme: "Concepts" },
+            { unit: 1, term: "Ethics", definition: "Moral principles that govern the conduct of an individual or group, particularly in a professional setting.", theme: "Concepts" },
+            { unit: 1, term: "Hashing", definition: "A process that converts an input (like a password) into a fixed-size string of characters, which is a one-way function not meant to be decrypted.", theme: "Cryptography" },
+            { unit: 1, term: "Identity Verification", definition: "The process of confirming that an individual is who they claim to be.", theme: "Concepts" },
+            { unit: 1, term: "Password", definition: "A secret word or phrase that must be used to gain admission to a place or system.", theme: "Concepts" },
+            { unit: 1, term: "Password Attack", definition: "An attempt to gain unauthorized access to a system by guessing or cracking user passwords.", theme: "Attacks" },
+            { unit: 1, term: "CIA Triad", definition: "A foundational security model standing for Confidentiality, Integrity, and Availability.", theme: "Concepts" },
+            { unit: 1, term: "Multi-Factor Authentication (MFA)", definition: "A security process requiring more than one method of authentication from independent categories of credentials.", theme: "Defense" },
+            { unit: 1, term: "Biometrics", definition: "Authentication using unique physical characteristics, such as fingerprints or facial recognition.", theme: "Concepts" },
+            { unit: 1, term: "Access Control", definition: "The selective restriction of access to a resource, defining who can access what.", theme: "Defense" },
+            { unit: 2, term: "Command Line Interface (CLI)", definition: "A text-based interface used to run programs, manage computer files, and interact with the operating system.", theme: "Tools" },
+            { unit: 2, term: "Linux", definition: "An open-source family of Unix-like operating systems based on the Linux kernel.", theme: "Tools" },
+            { unit: 2, term: "Malicious Code (Malware)", definition: "Software intentionally designed to cause damage to a computer, server, client, or network.", theme: "Attacks" },
+            { unit: 2, term: "Virtualization", definition: "The act of creating a virtual (rather than actual) version of something, including virtual computer hardware platforms, storage devices, and computer network resources.", theme: "Tools" },
+            { unit: 2, term: "Virus", definition: "Malware that attaches to another program and, when executed, replicates itself by modifying other computer programs.", theme: "Attacks" },
+            { unit: 2, term: "Worm", definition: "Standalone malware that replicates itself to spread to other computers, often using a computer network.", theme: "Attacks" },
+            { unit: 2, term: "Trojan Horse", definition: "Malware disguised as legitimate software to trick users into executing it.", theme: "Attacks" },
+            { unit: 2, term: "Ransomware", definition: "Malware that encrypts a victim's files and demands a ransom payment to restore access.", theme: "Attacks" },
+            { unit: 2, term: "Sandbox", definition: "A secure, isolated environment used for running and analyzing suspicious code without affecting the host system.", theme: "Tools" },
+            { unit: 3, term: "Mitigation", definition: "The action of reducing the severity, seriousness, or impact of a threat or vulnerability.", theme: "Defense" },
+            { unit: 3, term: "Open-Source Intelligence (OSINT)", definition: "Data collected from publicly available sources to be used in an intelligence context.", theme: "Recon" },
+            { unit: 3, term: "Phishing", definition: "A fraudulent attempt to obtain sensitive information such as usernames or passwords by disguising as a trustworthy entity in an electronic communication.", theme: "Attacks" },
+            { unit: 3, term: "Social Engineering", definition: "The psychological manipulation of people into performing actions or divulging confidential information.", theme: "Attacks" },
+            { unit: 3, term: "Vishing", definition: "Phishing attempts conducted over voice channels, such as phone calls or voice messages.", theme: "Attacks" },
+            { unit: 3, term: "Smishing", definition: "Phishing attempts conducted using SMS text messages.", theme: "Attacks" },
+            { unit: 3, term: "Pretexting", definition: "Creating an invented scenario (a pretext) to engage a target in a way that increases the chance they will divulge information.", theme: "Attacks" },
+            { unit: 3, term: "Baiting", definition: "An attack where the perpetrator leaves a malware-infected physical device, like a USB drive, in a location it is sure to be found.", theme: "Attacks" },
+            { unit: 4, term: "Internet of Things (IoT)", definition: "The network of physical devices embedded with sensors and software that connect and exchange data over the Internet.", theme: "Concepts" },
+            { unit: 4, term: "System Hardening", definition: "The process of securing a system by reducing its surface of vulnerability.", theme: "Defense" },
+            { unit: 4, term: "System Security", definition: "Measures taken to protect a computer system from unauthorized access or damage.", theme: "Defense" },
+            { unit: 4, term: "System Vulnerability", definition: "A weakness which can be exploited by a threat actor to perform unauthorized actions within a computer system.", theme: "Attacks" },
+            { unit: 4, term: "Threat Modeling", definition: "A process to identify, enumerate, and prioritize potential threats from an attacker's perspective.", theme: "Defense" },
+            { unit: 4, term: "Patch Management", definition: "The process of distributing and applying updates to software to fix bugs or security vulnerabilities.", theme: "Defense" },
+            { unit: 4, term: "Principle of Least Privilege", definition: "Granting users only the minimum levels of access needed to perform their job functions.", theme: "Concepts" },
+            { unit: 4, term: "Firewall", definition: "A network security device that monitors and filters incoming and outgoing network traffic based on security rules.", theme: "Defense" },
+            { unit: 4, term: "Zero-Day Vulnerability", definition: "A flaw in software or hardware that is unknown to those responsible for patching it.", theme: "Attacks" },
+            { unit: 5, term: "Binary", definition: "A base-2 number system that uses only two symbols: 0 and 1. It is the primary language of computers.", theme: "Concepts" },
+            { unit: 5, term: "Bits", definition: "The smallest unit of data in a computer, represented as a 0 or 1.", theme: "Concepts" },
+            { unit: 5, term: "Bytes", definition: "A unit of digital information that most commonly consists of eight bits.", theme: "Concepts" },
+            { unit: 5, term: "Cryptography", definition: "The practice and study of techniques for secure communication in the presence of adversaries.", theme: "Cryptography" },
+            { unit: 5, term: "Data Representation", definition: "The various ways in which data is stored and processed in a computer system.", theme: "Concepts" },
+            { unit: 5, term: "Encoding", definition: "The process of converting data into a specific format for processing.", theme: "Concepts" },
+            { unit: 5, term: "Hexadecimal", definition: "A base-16 number system using sixteen distinct symbols, 0–9 and A–F.", theme: "Concepts" },
+            { unit: 5, term: "Steganography", definition: "The practice of concealing a message or file within another message or file.", theme: "Cryptography" },
+            { unit: 5, term: "ASCII", definition: "A character encoding standard for electronic communication.", theme: "Concepts" },
+            { unit: 5, term: "Cipher", definition: "An algorithm for performing encryption or decryption.", theme: "Cryptography" },
+            { unit: 5, term: "Plaintext", definition: "Unencrypted, human-readable data.", theme: "Cryptography" },
+            { unit: 5, term: "Ciphertext", definition: "Data that has been encrypted and is unreadable without a key.", theme: "Cryptography" },
+            { unit: 6, term: "Command Line Interface (CLI)", definition: "A text-based interface used to run programs and interact with an operating system.", theme: "Tools" },
+            { unit: 6, term: "Investigation (CLI)", definition: "Using command-line tools for forensic or security investigation.", theme: "Tools" },
+            { unit: 6, term: "Networking (CLI)", definition: "Using command-line tools to configure and troubleshoot network connections.", theme: "Tools" },
+            { unit: 6, term: "Scripting", definition: "Writing programs or command sequences to automate tasks.", theme: "Tools" },
+            { unit: 6, term: "Bash", definition: "A command language and Unix shell used extensively on Linux and macOS.", theme: "Tools" },
+            { unit: 6, term: "PowerShell", definition: "A task automation and configuration management framework from Microsoft.", theme: "Tools" },
+            { unit: 6, term: "Regular Expression (Regex)", definition: "A sequence of characters that specifies a search pattern in text.", theme: "Tools" },
+            { unit: 6, term: "cron", definition: "A time-based job scheduler in Unix-like operating systems for automating repetitive tasks.", theme: "Tools" },
+            { unit: 7, term: "Computer Components", definition: "The physical parts that make up a computer system, such as the CPU, memory, and storage drives.", theme: "Networking" },
+            { unit: 7, term: "Network Components", definition: "Devices such as routers, switches, and hubs that connect computers on a network.", theme: "Networking" },
+            { unit: 7, term: "Network Naming", definition: "Systems like DNS that translate human-readable names to machine-readable IP addresses.", theme: "Networking" },
+            { unit: 7, term: "Networking", definition: "The practice of connecting computers to share resources and information.", theme: "Networking" },
+            { unit: 7, term: "Packets", definition: "A small unit of data transmitted over a network.", theme: "Networking" },
+            { unit: 7, term: "Protocols", definition: "A set of rules governing the exchange or transmission of data between devices.", theme: "Networking" },
+            { unit: 7, term: "TCP/IP Model", definition: "A conceptual model and set of communication protocols used on the Internet.", theme: "Networking" },
+            { unit: 7, term: "DNS (Domain Name System)", definition: "The hierarchical system that translates domain names into IP addresses.", theme: "Networking" },
+            { unit: 7, term: "Router", definition: "A device that forwards data packets between computer networks.", theme: "Networking" },
+            { unit: 7, term: "MAC Address", definition: "A unique identifier assigned to a network interface controller (NIC) for communication on a physical network segment.", theme: "Networking" },
+            { unit: 8, term: "Ethics", definition: "Moral principles that govern the conduct of an individual or group in the cybersecurity field.", theme: "Concepts" },
+            { unit: 8, term: "Google Dorking", definition: "Using advanced search operators in Google to find information not easily available on a website.", theme: "Recon" },
+            { unit: 8, term: "IP Address", definition: "A unique numerical label assigned to each device connected to a computer network.", theme: "Networking" },
+            { unit: 8, term: "Law", definition: "The system of rules which a country or community recognizes as regulating the actions of its members.", theme: "Concepts" },
+            { unit: 8, term: "nslookup", definition: "A command-line tool for querying the Domain Name System (DNS).", theme: "Tools" },
+            { unit: 8, term: "Reconnaissance (Recon)", definition: "The act of gathering information about a target system or network before an attack.", theme: "Recon" },
+            { unit: 8, term: "Scanning", definition: "Actively probing a network or system to discover hosts, services, and vulnerabilities.", theme: "Recon" },
+            { unit: 8, term: "Subnet Mask", definition: "A number that defines a range of IP addresses available within a network.", theme: "Networking" },
+            { unit: 8, term: "whois", definition: "A protocol for querying databases that store registered users of an Internet resource, such as a domain name.", theme: "Tools" },
+            { unit: 8, term: "Port Scanning", definition: "Probing a server or host for open ports to identify running services and potential vulnerabilities.", theme: "Recon" },
+            { unit: 8, term: "Nmap", definition: "A free and open-source network scanner for network discovery and security auditing.", theme: "Tools" },
+            { unit: 8, term: "White Hat Hacker", definition: "An ethical hacker who uses their skills to improve security by finding vulnerabilities before malicious actors do.", theme: "Concepts" },
+            { unit: 8, term: "Black Hat Hacker", definition: "A hacker who violates computer security for personal gain or malice.", theme: "Concepts" },
+            { unit: 9, term: "EternalBlue", definition: "A specific exploit that takes advantage of a vulnerability in Microsoft's SMB protocol.", theme: "Attacks" },
+            { unit: 9, term: "Exploit", definition: "Code that takes advantage of a vulnerability to cause unintended behavior on software or hardware.", theme: "Attacks" },
+            { unit: 9, term: "Mobile Security", definition: "The protection of smartphones and other portable devices from threats.", theme: "Defense" },
+            { unit: 9, term: "Network Attack", definition: "An attempt to gain unauthorized access to an organization's network.", theme: "Attacks" },
+            { unit: 9, term: "Penetration Testing (Pentesting)", definition: "A simulated cyber attack against a system to check for exploitable vulnerabilities.", theme: "Recon" },
+            { unit: 9, term: "Sniffing", definition: "Capturing and inspecting data packets as they travel across a network.", theme: "Attacks" },
+            { unit: 9, term: "Spoofing", definition: "Masquerading as another person or program by falsifying data.", theme: "Attacks" },
+            { unit: 9, term: "Threat Hunting", definition: "Proactively searching through networks to detect and isolate advanced threats.", theme: "Defense" },
+            { unit: 9, term: "VPN (Virtual Private Network)", definition: "Extends a private network across a public network, enabling secure data transfer.", theme: "Networking" },
+            { unit: 9, term: "Wireless Security", definition: "The prevention of unauthorized access to data using wireless networks.", theme: "Defense" },
+            { unit: 9, term: "Denial-of-Service (DoS) Attack", definition: "An attack seeking to make a machine or network resource unavailable to its intended users.", theme: "Attacks" },
+            { unit: 9, term: "Man-in-the-Middle (MitM) Attack", definition: "An attack where the attacker secretly relays and possibly alters the communications between two parties.", theme: "Attacks" },
+            { unit: 9, term: "Metasploit", definition: "A widely used penetration testing framework.", theme: "Tools" },
+            { unit: 9, term: "WPA2/WPA3", definition: "Security protocols developed by the Wi-Fi Alliance to secure wireless computer networks.", theme: "Defense" },
+            { unit: 10, term: "Database", definition: "An organized collection of structured information, or data, typically stored electronically.", theme: "Concepts" },
+            { unit: 10, term: "SQL Injection", definition: "A code injection technique used to attack data-driven applications, in which malicious SQL statements are inserted into an entry field for execution.", theme: "Attacks" },
+            { unit: 10, term: "User Input Threats", definition: "Vulnerabilities that occur when an application does not properly validate or sanitize user-provided input.", theme: "Attacks" },
+            { unit: 10, term: "Web Application Security", definition: "Protecting websites and online services against security threats that exploit application vulnerabilities.", theme: "Defense" },
+            { unit: 10, term: "Web Vulnerabilities", definition: "A weakness in a web application that could be exploited by a threat actor.", theme: "Attacks" },
+            { unit: 10, term: "Cross-Site Scripting (XSS)", definition: "An attack where malicious scripts are injected into otherwise benign and trusted websites.", theme: "Attacks" },
+            { unit: 10, term: "Cross-Site Request Forgery (CSRF)", definition: "An attack that forces an end user to execute unwanted actions on a web application in which they're currently authenticated.", theme: "Attacks" },
+            { unit: 10, term: "Cookies", definition: "Small blocks of data created by a web server and placed on a user's device to remember stateful information.", theme: "Concepts" },
+            { unit: 10, term: "HTTPS", definition: "The secure version of HTTP, where communications between your browser and the website are encrypted.", theme: "Defense" },
+            { unit: 11, term: "Applied Cryptography", definition: "The use of cryptographic methods to secure data in real-world applications.", theme: "Cryptography" },
+            { unit: 11, term: "Asymmetric Encryption", definition: "An encryption system that uses pairs of keys: a public key and a private key.", theme: "Cryptography" },
+            { unit: 11, term: "Secure Communications", definition: "The transfer of information between parties where the contents are protected from interception.", theme: "Cryptography" },
+            { unit: 11, term: "SSL (Secure Sockets Layer)", definition: "A standard security technology for establishing an encrypted link between a server and a client. Largely succeeded by TLS.", theme: "Cryptography" },
+            { unit: 11, term: "Symmetric Encryption", definition: "A type of encryption where only one key is used to both encrypt and decrypt electronic information.", theme: "Cryptography" },
+            { unit: 11, term: "TLS (Transport Layer Security)", definition: "The successor protocol to SSL, providing secure communication over a computer network.", theme: "Cryptography" },
+            { unit: 11, term: "Public Key Infrastructure (PKI)", definition: "A set of roles, policies, and procedures needed to create, manage, and revoke digital certificates.", theme: "Cryptography" },
+            { unit: 11, term: "Digital Certificate", definition: "An electronic document used to prove the ownership of a public key, issued by a Certificate Authority.", theme: "Cryptography" },
+            { unit: 11, term: "Encryption", definition: "The process of converting information into a code to prevent unauthorized access.", theme: "Cryptography" }
+        ];
+
+        const unitInfo = {
+            1: { title: "Intro to Cybersecurity & Authentication", description: "This unit covers the fundamental concepts of identity verification and ethics in cybersecurity." },
+            2: { title: "Malicious Code & Secure Environments", description: "This unit introduces malware and the essential tools for managing and analyzing systems." },
+            3: { title: "The Human Element: Social Engineering & OSINT", description: "This unit focuses on attacks targeting people and methods for gathering public information." },
+            4: { title: "System Security & Hardening", description: "This unit explores common system vulnerabilities and the processes for securing computer systems." },
+            5: { title: "Data Representation & Cryptography Concepts", description: "This unit covers how data is represented digitally and introduces core cryptography ideas." },
+            6: { title: "Advanced Command Line & Scripting", description: "This unit provides a deeper look at using the command line for investigation, networking, and automation." },
+            7: { title: "Networking Fundamentals", description: "This unit explains the physical and logical components that allow computers to communicate." },
+            8: { title: "Ethics & Reconnaissance", description: "This unit introduces the legal and ethical framework for security work and the information gathering phase of an attack." },
+            9: { title: "Network Attacks & Penetration Testing", description: "This unit covers specific network attacks and the process of penetration testing." },
+            10: { title: "Web Application Security", description: "This unit is dedicated to understanding how websites work and securing them from common vulnerabilities." },
+            11: { title: "Applied Cryptography & Secure Communications", description: "This unit covers the mechanisms of modern encryption and its use in securing online communications." },
+            12: { title: "Project Expo", description: "This unit is dedicated to a project expo and does not have specific vocabulary words." }
+        };
+
+        let state = {
+            selectedUnit: null,
+            searchTerm: '',
+            selectedTheme: 'all'
+        };
+
+        const unitNav = document.getElementById('unit-nav');
+        const flashcardContainer = document.getElementById('flashcard-container');
+        const searchInput = document.getElementById('search');
+        const themeFilter = document.getElementById('theme-filter');
+        const mainTitle = document.getElementById('main-title');
+        const mainDescription = document.getElementById('main-description');
+        const dashboardView = document.getElementById('dashboard-view');
+        let chartInstance = null;
+
+        function renderNav() {
+            unitNav.innerHTML = '';
+            const allUnitsButton = document.createElement('button');
+            allUnitsButton.className = 'w-full text-left px-4 py-2 rounded-lg font-medium transition-colors duration-200';
+            allUnitsButton.textContent = 'All Units';
+            allUnitsButton.addEventListener('click', () => {
+                state.selectedUnit = null;
+                updateView();
+            });
+            unitNav.appendChild(allUnitsButton);
+            
+            Object.keys(unitInfo).forEach(unitNum => {
+                const button = document.createElement('button');
+                button.className = 'w-full text-left px-4 py-2 rounded-lg font-medium transition-colors duration-200';
+                button.textContent = `Unit ${unitNum}: ${unitInfo[unitNum].title}`;
+                button.dataset.unit = unitNum;
+                button.addEventListener('click', () => {
+                    state.selectedUnit = parseInt(unitNum);
+                    updateView();
+                });
+                unitNav.appendChild(button);
+            });
+        }
+        
+        function renderThemes() {
+            const themes = ['all', ...new Set(vocabularyData.map(item => item.theme))];
+            themes.sort();
+            themeFilter.innerHTML = themes.map(theme => `<option value="${theme}">${theme.charAt(0).toUpperCase() + theme.slice(1)}</option>`).join('');
+        }
+
+        function renderCards() {
+            flashcardContainer.innerHTML = '';
+            
+            const filteredData = vocabularyData.filter(item => {
+                const unitMatch = !state.selectedUnit || item.unit === state.selectedUnit;
+                const themeMatch = state.selectedTheme === 'all' || item.theme === state.selectedTheme;
+                const searchMatch = state.searchTerm === '' || 
+                                    item.term.toLowerCase().includes(state.searchTerm) || 
+                                    item.definition.toLowerCase().includes(state.searchTerm);
+                return unitMatch && themeMatch && searchMatch;
+            });
+
+            if (filteredData.length === 0) {
+                flashcardContainer.innerHTML = `<p class="text-gray-500 italic col-span-full text-center">No matching vocabulary found.</p>`;
+                return;
+            }
+
+            filteredData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'flashcard h-48 perspective-1000';
+                card.innerHTML = `
+                    <div class="relative w-full h-full flashcard-face flex flex-col items-center justify-center bg-white p-4 rounded-xl shadow-md border border-gray-200">
+                        <span class="text-sm text-blue-600 font-semibold">Unit ${item.unit}</span>
+                        <h4 class="text-gray-800 font-bold text-center text-lg mt-2">${item.term}</h4>
+                        <span class="absolute bottom-2 text-xs text-gray-400">Click to flip</span>
+                    </div>
+                    <div class="absolute w-full h-full top-0 left-0 flashcard-face flashcard-back flex flex-col bg-blue-600 text-white p-4 rounded-xl shadow-md items-center justify-center">
+                        <h4 class="text-white font-bold text-center text-lg mb-2">${item.term}</h4>
+                        <p class="text-sm text-center">${item.definition}</p>
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    card.classList.toggle('is-flipped');
+                });
+                flashcardContainer.appendChild(card);
+            });
+        }
+
+        function updateNavActiveState() {
+            const buttons = unitNav.querySelectorAll('button');
+            buttons.forEach(button => {
+                const unit = button.dataset.unit;
+                if ((!state.selectedUnit && button.textContent === 'All Units') || (unit && parseInt(unit) === state.selectedUnit)) {
+                    button.classList.add('bg-blue-100', 'text-blue-700');
+                    button.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                } else {
+                    button.classList.remove('bg-blue-100', 'text-blue-700');
+                    button.classList.add('text-gray-600', 'hover:bg-gray-100');
+                }
+            });
+        }
+        
+        function updateHeaderText() {
+            if(state.selectedUnit) {
+                mainTitle.textContent = `Unit ${state.selectedUnit}: ${unitInfo[state.selectedUnit].title}`;
+                mainDescription.textContent = unitInfo[state.selectedUnit].description;
+                dashboardView.style.display = 'none';
+            } else {
+                mainTitle.textContent = 'All Cybersecurity Vocabulary';
+                mainDescription.textContent = 'Browse all terms from the curriculum. Use the filters to narrow your search.';
+                dashboardView.style.display = 'block';
+            }
+        }
+
+        function renderChart() {
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            const ctx = document.getElementById('terms-chart').getContext('2d');
+            const unitCounts = Object.keys(unitInfo).map(unitNum => {
+                return vocabularyData.filter(item => item.unit === parseInt(unitNum)).length;
+            });
+            const labels = Object.keys(unitInfo).map(num => `Unit ${num}`);
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '# of Terms',
+                        data: unitCounts,
+                        backgroundColor: 'rgba(37, 99, 235, 0.6)',
+                        borderColor: 'rgba(37, 99, 235, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#e5e7eb'
+                            }
+                        },
+                        x: {
+                           grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: '#111827',
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                            padding: 10,
+                            cornerRadius: 6
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateView() {
+            renderCards();
+            updateNavActiveState();
+            updateHeaderText();
+            if(!state.selectedUnit) {
+                renderChart();
+            }
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            state.searchTerm = e.target.value.toLowerCase();
+            updateView();
+        });
+        
+        themeFilter.addEventListener('change', (e) => {
+            state.selectedTheme = e.target.value;
+            updateView();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderNav();
+            renderThemes();
+            updateView();
+        });
+    </script>
+</body>
+</html>
